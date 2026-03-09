@@ -85,6 +85,25 @@ export default function Eats() {
     setLoading(true);
     setError(null);
     try {
+      // Dispensaries: use Weedmaps API
+      if (activeCategory.id === 'dispensary') {
+        const params = new URLSearchParams({ lat: coords.lat, lng: coords.lng, radius: Math.round(radius / 1609) || 5 });
+        const res = await fetch(`/api/weedmaps?${params}`);
+        const data = await res.json();
+        const mapped = (data.dispensaries || []).map(d => ({
+          id: d.id || d.slug,
+          displayName: { text: d.name },
+          formattedAddress: d.address || d.city,
+          rating: d.rating,
+          userRatingCount: d.reviews_count,
+          currentOpeningHours: { openNow: d.open_now },
+          websiteUri: d.menu_url || `https://weedmaps.com/dispensaries/${d.slug}`,
+          isWeedmaps: true,
+        }));
+        setPlaces(mapped);
+        return;
+      }
+      // All other categories: use Google Places
       const results = [];
       for (const type of activeCategory.types) {
         const params = new URLSearchParams({ lat: coords.lat, lng: coords.lng, radius, type });
@@ -216,10 +235,19 @@ export default function Eats() {
                 )}
               </div>
               {address && <div style={{ color: '#444', fontSize: 11, marginTop: 6 }}>{address}</div>}
+              {place.isWeedmaps && place.websiteUri && (
+                <a href={place.websiteUri} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 11, fontWeight: 700, color: '#4ade80', background: '#052e16', border: '1px solid #14532d', padding: '4px 10px', borderRadius: 8, textDecoration: 'none' }}>
+                  View Menu on Weedmaps →
+                </a>
+              )}
             </div>
           );
         })}
-        {!loading && filtered.length > 0 && <div style={{ color: '#333', fontSize: 11, textAlign: 'center', marginTop: 8 }}>{filtered.length} places • Google Places</div>}
+        {!loading && filtered.length > 0 && (
+          <div style={{ color: '#333', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
+            {filtered.length} places • {activeCategory.id === 'dispensary' ? 'Weedmaps' : 'Google Places'}
+          </div>
+        )}
       </div>
     </div>
   );
