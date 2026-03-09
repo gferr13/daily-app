@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'lat and lng required' });
   }
 
-  const PLACES_KEY = 'AIzaSyD9kELoKH2b1P5ZyVozUiJHkFOKPOlPass';
+  const PLACES_KEY = process.env.GOOGLE_PLACES_KEY;
 
   try {
     const url = `https://places.googleapis.com/v1/places:searchNearby`;
