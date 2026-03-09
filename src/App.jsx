@@ -1,5 +1,5 @@
 import { useState } from "react";
-import DealsTab  from "./tabs/Deals.jsx";
+import DealsTab  from "./tabs/DealsWrapper.jsx";
 import GasTab    from "./tabs/Gas.jsx";
 import EventsTab from "./tabs/Events.jsx";
 import EatsTab   from "./tabs/Eats.jsx";
@@ -8,7 +8,7 @@ const TABS = [
   { id: "deals",  label: "Deals",  icon: "🛒" },
   { id: "gas",    label: "Gas",    icon: "⛽" },
   { id: "events", label: "Events", icon: "📍" },
-  { id: "eats",   label: "Eats",   icon: "🍽" },
+  { id: "eats",   label: "Around Me",   icon: "🍽" },
 ];
 
 export default function App() {
