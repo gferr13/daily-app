@@ -1,0 +1,256 @@
+import { useState, useEffect } from 'react';
+
+const CATEGORIES = [
+  { label: 'All', type: null },
+  { label: 'Restaurants', type: 'restaurant' },
+  { label: 'Cafes', type: 'cafe' },
+  { label: 'Bars', type: 'bar' },
+  { label: 'Pizza', type: 'pizza_restaurant' },
+  { label: 'Fast Food', type: 'fast_food_restaurant' },
+  { label: 'Bakeries', type: 'bakery' },
+];
+
+const PRICE_MAP = {
+  PRICE_LEVEL_FREE: 'Free',
+  PRICE_LEVEL_INEXPENSIVE: '$',
+  PRICE_LEVEL_MODERATE: '$$',
+  PRICE_LEVEL_EXPENSIVE: '$$$',
+  PRICE_LEVEL_VERY_EXPENSIVE: '$$$$',
+};
+
+function Stars({ rating }) {
+  if (!rating) return <span style={{ color: '#666', fontSize: 12 }}>No rating</span>;
+  const full = Math.floor(rating);
+  const half = rating % 1 >= 0.5;
+  return (
+    <span style={{ color: '#f59e0b', fontSize: 13 }}>
+      {'★'.repeat(full)}{half ? '½' : ''}{'☆'.repeat(5 - full - (half ? 1 : 0))}
+      <span style={{ color: '#aaa', fontSize: 11, marginLeft: 4 }}>{rating.toFixed(1)}</span>
+    </span>
+  );
+}
+
+export default function Eats() {
+  const [places, setPlaces] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [category, setCategory] = useState(null);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('rating');
+  const [locGranted, setLocGranted] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const [radius, setRadius] = useState(1500);
+
+  const getLocation = () => {
+    setError(null);
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocGranted(true);
+      },
+      (err) => {
+        // Fall back to Bloomfield NJ center
+        setCoords({ lat: 40.8126, lng: -74.1854 });
+        setLocGranted(true);
+      },
+      { timeout: 8000 }
+    );
+  };
+
+  useEffect(() => {
+    if (!coords) return;
+    fetchPlaces();
+  }, [coords, category, radius]);
+
+  const fetchPlaces = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        lat: coords.lat,
+        lng: coords.lng,
+        radius,
+        ...(category ? { type: category } : {})
+      });
+      const res = await fetch(`/api/eats?${params}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setPlaces(data.places || []);
+    } catch (e) {
+      setError(e.message || 'Failed to load restaurants');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered = places
+    .filter(p => {
+      if (!search) return true;
+      return (p.displayName?.text || '').toLowerCase().includes(search.toLowerCase());
+    })
+    .sort((a, b) => {
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      if (sortBy === 'reviews') return (b.userRatingCount || 0) - (a.userRatingCount || 0);
+      return 0;
+    });
+
+  if (!locGranted) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🍽</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Find places near you</div>
+        <div style={{ color: '#aaa', fontSize: 14, marginBottom: 24 }}>
+          Uses your current location to find restaurants, cafes, bars and more
+        </div>
+        <button
+          onClick={getLocation}
+          style={{
+            background: '#3b82f6',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            padding: '14px 28px',
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Use My Location
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Controls */}
+      <div style={{ padding: '12px 16px', background: '#1a1a1a', position: 'sticky', top: 0, zIndex: 10 }}>
+        <input
+          type="text"
+          placeholder="Search places..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: '#2a2a2a', border: '1px solid #333',
+            borderRadius: 8, padding: '8px 12px',
+            color: '#fff', fontSize: 14, marginBottom: 10,
+          }}
+        />
+
+        {/* Category pills */}
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+          {CATEGORIES.map(c => (
+            <button
+              key={c.label}
+              onClick={() => setCategory(c.type)}
+              style={{
+                background: category === c.type ? '#3b82f6' : '#2a2a2a',
+                color: category === c.type ? '#fff' : '#aaa',
+                border: 'none', borderRadius: 20,
+                padding: '5px 12px', fontSize: 12,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >{c.label}</button>
+          ))}
+        </div>
+
+        {/* Sort + Radius row */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            style={{ flex: 1, background: '#2a2a2a', border: '1px solid #333', borderRadius: 8, padding: '6px 10px', color: '#fff', fontSize: 13 }}
+          >
+            <option value="rating">Sort: Rating</option>
+            <option value="reviews">Sort: Most Reviewed</option>
+          </select>
+          <select
+            value={radius}
+            onChange={e => setRadius(Number(e.target.value))}
+            style={{ flex: 1, background: '#2a2a2a', border: '1px solid #333', borderRadius: 8, padding: '6px 10px', color: '#fff', fontSize: 13 }}
+          >
+            <option value={800}>0.5 mi</option>
+            <option value={1500}>1 mi</option>
+            <option value={3200}>2 mi</option>
+            <option value={8000}>5 mi</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Results */}
+      <div style={{ padding: '8px 16px 80px' }}>
+        {loading && (
+          <div style={{ textAlign: 'center', color: '#666', padding: 40 }}>
+            Loading nearby places...
+          </div>
+        )}
+        {error && (
+          <div style={{ background: '#2a1a1a', border: '1px solid #7f1d1d', borderRadius: 10, padding: 16, color: '#fca5a5', fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+        {!loading && !error && filtered.length === 0 && places.length > 0 && (
+          <div style={{ color: '#666', textAlign: 'center', padding: 40 }}>No results match your search</div>
+        )}
+        {filtered.map((place, i) => {
+          const name = place.displayName?.text || 'Unknown';
+          const address = place.formattedAddress || '';
+          const rating = place.rating;
+          const reviewCount = place.userRatingCount;
+          const price = PRICE_MAP[place.priceLevel] || '';
+          const type = place.primaryTypeDisplayName?.text || '';
+          const isOpen = place.currentOpeningHours?.openNow;
+
+          return (
+            <div
+              key={place.id || i}
+              style={{
+                background: '#1e1e1e',
+                borderRadius: 12,
+                padding: '14px 16px',
+                marginBottom: 10,
+                border: '1px solid #2a2a2a',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
+                  <div style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>
+                    {type}{type && price ? ' · ' : ''}{price}
+                  </div>
+                  <Stars rating={rating} />
+                  {reviewCount > 0 && (
+                    <span style={{ color: '#666', fontSize: 11, marginLeft: 6 }}>({reviewCount.toLocaleString()})</span>
+                  )}
+                </div>
+                <div style={{ marginLeft: 12, textAlign: 'right', flexShrink: 0 }}>
+                  {isOpen !== undefined && (
+                    <span style={{
+                      fontSize: 11, fontWeight: 600,
+                      color: isOpen ? '#4ade80' : '#f87171',
+                      background: isOpen ? '#052e16' : '#2d0a0a',
+                      padding: '3px 8px', borderRadius: 20,
+                    }}>
+                      {isOpen ? 'Open' : 'Closed'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {address && (
+                <div style={{ color: '#555', fontSize: 11, marginTop: 6 }}>{address}</div>
+              )}
+            </div>
+          );
+        })}
+
+        {!loading && places.length > 0 && (
+          <div style={{ color: '#444', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
+            {filtered.length} places • Powered by Google Places
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
