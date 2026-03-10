@@ -5,7 +5,7 @@ Three-tab mobile app: Grocery Deals · Gas Prices · Local Events
 ## Deploy (3 commands)
 
 ```bash
-npm install -g vercel   # one time
+npm  install -g vercel   # one time
 npm install
 vercel --prod
 ```
