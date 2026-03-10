@@ -205,6 +205,7 @@ export default function Eats() {
         />
         <div style={{ display: 'flex', gap: 8 }}>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ flex: 1, background: '#2a2a2a', border: '1px solid #333', borderRadius: 8, padding: '6px 10px', color: '#fff', fontSize: 13 }}>
+            <option value="nearest">Nearest</option>
             <option value="rating">Top Rated</option>
             <option value="reviews">Most Reviewed</option>
           </select>

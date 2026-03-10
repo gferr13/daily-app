@@ -16,6 +16,10 @@ export default function DealsTab() {
 
   if (active) {
     const cat = CATEGORIES.find(c => c.id === active);
+    // Dispensary has its own header, skip the wrapper header
+    if (active === "dispensary") {
+      return <DispensaryDeals onBack={() => setActive(null)} />;
+    }
     return (
       <div>
         {/* Back header */}
@@ -26,7 +30,7 @@ export default function DealsTab() {
           <div style={{ fontSize: 18, fontWeight: 800 }}>{cat.icon} {cat.label}</div>
         </div>
         {active === "supermarket" && <SupermarketDeals hideHeader />}
-        {active === "dispensary"  && <DispensaryDeals />}
+        {active === "dispensary"  && <DispensaryDeals onBack={() => setActive(null)} hideHeader />}
       </div>
     );
   }
