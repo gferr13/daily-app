@@ -1,147 +1,170 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
+import { isBusy } from '../utils/busyness';
 
-export default function DealsDispensary() {
-  const [dispensaries, setDispensaries] = useState([]);
-  const [status, setStatus] = useState("loading");
-  const [coords, setCoords] = useState(null);
+const DISPENSARIES = [
+  { name: 'A-Z Supply', slug: 'a-z-supply', address: 'Bloomfield, NJ', emoji: '🅰️', weedmaps: true },
+  { name: 'Emerald Tea Supply Co.', slug: 'emerald-tea-supply-company', address: 'Bloomfield, NJ', emoji: '🍵', weedmaps: true },
+  { name: 'Blue Oak', slug: 'blue-oak', address: 'Bloomfield, NJ', emoji: '🌳', weedmaps: true },
+  { name: 'Rise Bloomfield', slug: null, address: '400 Bloomfield Ave, Bloomfield, NJ', emoji: '☀️', weedmaps: false, url: 'https://risecannabisnj.com/stores/bloomfield/' },
+];
 
-  const fetchDispensaries = async (lat, lng) => {
-    setStatus("loading");
+const busy = isBusy('dispensary');
+
+export default function DealsDispensary({ onBack }) {
+  const [selected, setSelected] = useState(null);
+  const [deals, setDeals] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [storeInfo, setStoreInfo] = useState(null);
+
+  async function loadDeals(disp) {
+    setSelected(disp);
+    if (!disp.weedmaps) return;
+    setLoading(true);
+    setDeals([]);
+    setStoreInfo(null);
     try {
-      // Call Weedmaps discovery API directly from browser (no server proxy)
-      const url = `https://api-g.weedmaps.com/discovery/v1/listings?filter[any_retailer_services][]=storefront&filter[latlng]=${lat},${lng}&filter[distance]=15&size=15&include[]=deals`;
-      const res = await fetch(url, {
-        headers: {
-          "Accept": "application/json",
-          "Referer": "https://weedmaps.com/",
-        },
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const data = await res.json();
-      const listings = (data?.data?.listings || []).map(l => ({
-        id: l.id,
-        name: l.name,
-        city: l.city,
-        distance: l.distance,
-        rating: l.rating,
-        slug: l.slug,
-        address: l.address,
-        phone: l.phone_number,
-        url: `https://weedmaps.com/dispensaries/${l.slug}`,
-        deals: (l.deals || []).map(d => ({
-          title: d.title || d.name,
-          description: d.description,
-        })),
-      }));
-      setDispensaries(listings);
-      setStatus("live");
+      const r = await fetch(`/api/weedmaps?slug=${disp.slug}`);
+      const data = await r.json();
+      const listing = data?.data?.listing || data?.listing || null;
+      if (listing) {
+        setStoreInfo({
+          name: listing.name,
+          rating: listing.rating,
+          reviews: listing.reviews_count,
+          open: listing.open_now,
+          hours: listing.todays_hours_str,
+          phone: listing.phone,
+          url: listing.web_url || `https://weedmaps.com/dispensaries/${disp.slug}`,
+          avatar: listing.avatar_image?.small_url,
+        });
+        setDeals(listing.deals || []);
+      }
     } catch (e) {
-      console.error("Weedmaps error:", e);
-      setStatus("error");
+      console.error(e);
     }
-  };
-
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        setCoords({ lat, lng });
-        fetchDispensaries(lat, lng);
-      },
-      () => {
-        setCoords({ lat: 40.8126, lng: -74.1854 });
-        fetchDispensaries(40.8126, -74.1854);
-      },
-      { timeout: 6000 }
-    );
-  }, []);
-
-  const weedmapsUrl = coords
-    ? `https://weedmaps.com/dispensaries?lat=${coords.lat}&lng=${coords.lng}`
-    : `https://weedmaps.com/dispensaries/in/united-states/new-jersey/bloomfield`;
-
-  if (status === "loading") {
-    return (
-      <div style={{ padding: "80px 20px", textAlign: "center" }}>
-        <div style={{ fontSize: 42, marginBottom: 12 }}>🌿</div>
-        <div style={{ color: "#555", fontSize: 14 }}>Finding dispensaries near you…</div>
-      </div>
-    );
+    setLoading(false);
   }
 
-  if (status === "error") {
+  // Store list view
+  if (!selected) {
     return (
-      <div style={{ padding: "24px 16px 80px" }}>
-        <div style={{ background: "#0d1f0d", border: "1px solid #1a3a1a", borderRadius: 18, padding: "28px 20px", textAlign: "center", marginBottom: 16 }}>
-          <div style={{ fontSize: 48, marginBottom: 10 }}>🌿</div>
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Find Dispensary Deals</div>
-          <div style={{ fontSize: 13, color: "#666", marginBottom: 20, lineHeight: 1.6 }}>
-            Browse live menus, daily deals, and specials near you on Weedmaps.
-          </div>
-          <a href={weedmapsUrl} target="_blank" rel="noreferrer"
-            style={{ display: "block", background: "#1a4d1a", border: "1px solid #2a6a2a", borderRadius: 14, padding: "14px 20px", textDecoration: "none", color: "#fff", fontSize: 15, fontWeight: 700 }}>
-            Browse on Weedmaps →
-          </a>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #1a1a1a' }}>
+          <button onClick={onBack} style={{ background: '#1c1c1c', border: '1px solid #2a2a2a', color: '#ccc', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13 }}>← Back</button>
+          <span style={{ fontSize: 16, fontWeight: 700 }}>🌿 Dispensaries</span>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ paddingBottom: 80 }}>
-      {/* Header */}
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #181818" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#34c77b", display: "inline-block" }} />
-              {dispensaries.length} dispensaries nearby
-            </div>
-          </div>
-          <a href={weedmapsUrl} target="_blank" rel="noreferrer"
-            style={{ fontSize: 11, fontWeight: 700, color: "#34c77b", textDecoration: "none", background: "#052e16", padding: "5px 10px", borderRadius: 8, border: "1px solid #14532d" }}>
-            View All →
-          </a>
-        </div>
-      </div>
-
-      <div style={{ padding: "10px 16px" }}>
-        {dispensaries.length === 0 && (
-          <div style={{ textAlign: "center", color: "#555", padding: "48px 0" }}>
-            No dispensaries found nearby.
-          </div>
-        )}
-        {dispensaries.map((d, i) => (
-          <a key={d.id || i} href={d.url} target="_blank" rel="noreferrer"
-            style={{ display: "block", background: "#111", borderRadius: 14, padding: "14px 16px", marginBottom: 10, border: "1px solid #181818", textDecoration: "none", color: "#fff" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>🌿 {d.name}</div>
-                {d.address && <div style={{ color: "#555", fontSize: 12, marginBottom: 4 }}>{d.address}</div>}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                  {d.distance && <span style={{ fontSize: 12, color: "#888" }}>📍 {typeof d.distance === 'number' ? d.distance.toFixed(1) : d.distance} mi</span>}
-                  {d.rating && <span style={{ fontSize: 12, color: "#f59e0b" }}>★ {d.rating}</span>}
-                  {d.deals?.length > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#34c77b", background: "#052e16", padding: "2px 7px", borderRadius: 20 }}>
-                      {d.deals.length} deal{d.deals.length > 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
-                {d.deals?.slice(0, 2).map((deal, j) => (
-                  <div key={j} style={{ marginTop: 8, background: "#0d1f0d", border: "1px solid #1a3a1a", borderRadius: 8, padding: "6px 10px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#86efac" }}>{deal.title}</div>
-                    {deal.description && <div style={{ fontSize: 11, color: "#555", marginTop: 2, lineHeight: 1.4 }}>{deal.description.slice(0, 80)}{deal.description.length > 80 ? "…" : ""}</div>}
-                  </div>
-                ))}
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {DISPENSARIES.map(d => (
+            <div key={d.name} onClick={() => loadDeals(d)}
+              style={{ background: '#111', borderRadius: 14, padding: '14px 16px', border: '1px solid #1c1c1c', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 28 }}>{d.emoji}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{d.name}</div>
+                <div style={{ color: '#555', fontSize: 12 }}>{d.address}</div>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#34c77b", flexShrink: 0, marginLeft: 10, marginTop: 2 }}>Menu →</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                {busy && <span style={{ background: '#ff3b3b', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 6px' }}>Busy</span>}
+                {!d.weedmaps && <span style={{ color: '#555', fontSize: 11 }}>Direct ↗</span>}
+                <span style={{ color: '#444', fontSize: 18 }}>›</span>
+              </div>
             </div>
-          </a>
-        ))}
-        <div style={{ textAlign: "center", fontSize: 10, color: "#2a2a2a", marginTop: 4 }}>
-          Data from Weedmaps · Tap any card to view full menu
+          ))}
         </div>
       </div>
+    );
+  }
+
+  // Rise — no Weedmaps, just direct link
+  if (selected && !selected.weedmaps) {
+    return (
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #1a1a1a' }}>
+          <button onClick={() => setSelected(null)} style={{ background: '#1c1c1c', border: '1px solid #2a2a2a', color: '#ccc', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13 }}>← Back</button>
+          <span style={{ fontSize: 16, fontWeight: 700 }}>{selected.emoji} {selected.name}</span>
+        </div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: '#111', borderRadius: 14, padding: 20, border: '1px solid #1c1c1c', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>☀️</div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>{selected.name}</div>
+            <div style={{ color: '#555', fontSize: 13, marginBottom: 4 }}>{selected.address}</div>
+            <div style={{ color: '#555', fontSize: 12, marginBottom: 20 }}>Rise uses their own ordering platform</div>
+            <a href={selected.url} target="_blank" rel="noreferrer"
+              style={{ display: 'block', background: '#1a3a1a', border: '1px solid #2a5a2a', color: '#4caf50', borderRadius: 10, padding: '12px 20px', textDecoration: 'none', fontWeight: 600, fontSize: 14, marginBottom: 10 }}>
+              View Deals & Menu →
+            </a>
+            <a href={`https://maps.apple.com/?q=${encodeURIComponent(selected.address)}`} target="_blank" rel="noreferrer"
+              style={{ display: 'block', background: '#1c1c1c', border: '1px solid #2a2a2a', color: '#aaa', borderRadius: 10, padding: '10px 20px', textDecoration: 'none', fontSize: 13 }}>
+              📍 Get Directions
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Weedmaps dispensary deals view
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #1a1a1a' }}>
+        <button onClick={() => { setSelected(null); setDeals([]); setStoreInfo(null); }}
+          style={{ background: '#1c1c1c', border: '1px solid #2a2a2a', color: '#ccc', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13 }}>← Back</button>
+        <span style={{ fontSize: 16, fontWeight: 700 }}>{selected.emoji} {selected.name}</span>
+      </div>
+
+      {loading && <div style={{ padding: 40, textAlign: 'center', color: '#444' }}>Loading deals...</div>}
+
+      {!loading && storeInfo && (
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Store header */}
+          <div style={{ background: '#111', borderRadius: 14, padding: 16, border: '1px solid #1c1c1c', display: 'flex', gap: 12, alignItems: 'center' }}>
+            {storeInfo.avatar && <img src={storeInfo.avatar} alt="" style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover' }} />}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>{storeInfo.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {storeInfo.rating > 0 && <span style={{ color: '#f5a623', fontSize: 12 }}>★ {storeInfo.rating?.toFixed(1)}</span>}
+                {storeInfo.reviews > 0 && <span style={{ color: '#555', fontSize: 12 }}>{storeInfo.reviews} reviews</span>}
+                {busy && <span style={{ background: '#ff3b3b', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 6px' }}>Busy</span>}
+              </div>
+              <div style={{ color: storeInfo.open ? '#4caf50' : '#888', fontSize: 12, marginTop: 3 }}>
+                {storeInfo.open ? '● Open' : '○ Closed'}{storeInfo.hours ? ' · ' + storeInfo.hours : ''}
+              </div>
+            </div>
+          </div>
+
+          {/* Deals */}
+          {deals.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 32, color: '#333', fontSize: 13 }}>No active deals right now</div>
+          )}
+          {deals.map((deal, i) => (
+            <div key={i} style={{ background: '#111', borderRadius: 14, padding: 16, border: '1px solid #1c3b1c' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, flex: 1, paddingRight: 8 }}>{deal.title || deal.name}</div>
+                {deal.deal_type && (
+                  <span style={{ background: '#1a3a1a', color: '#4caf50', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '3px 7px', whiteSpace: 'nowrap' }}>
+                    {deal.deal_type.replace(/_/g, ' ').toUpperCase()}
+                  </span>
+                )}
+              </div>
+              {deal.description && <div style={{ color: '#666', fontSize: 12, lineHeight: 1.5 }}>{deal.description}</div>}
+              {deal.expires_at && (
+                <div style={{ color: '#444', fontSize: 11, marginTop: 6 }}>
+                  Expires {new Date(deal.expires_at).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* CTA */}
+          <a href={storeInfo.url} target="_blank" rel="noreferrer"
+            style={{ display: 'block', background: '#1a3a1a', border: '1px solid #2a5a2a', color: '#4caf50', borderRadius: 12, padding: '13px 20px', textDecoration: 'none', fontWeight: 600, fontSize: 14, textAlign: 'center' }}>
+            View Full Menu on Weedmaps →
+          </a>
+        </div>
+      )}
+
+      {!loading && !storeInfo && (
+        <div style={{ padding: 40, textAlign: 'center', color: '#444', fontSize: 13 }}>Could not load store data</div>
+      )}
     </div>
   );
 }

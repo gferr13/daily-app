@@ -137,13 +137,16 @@ export default function EventsTab() {
             <div style={{ fontSize:28, marginBottom:10 }}>🔑</div>
             <div style={{ fontSize:14, fontWeight:700, marginBottom:8 }}>PredictHQ Key Needed</div>
             <div style={{ fontSize:12, color:"#555", lineHeight:1.6, marginBottom:14 }}>
-              Add your PredictHQ API key to Vercel environment variables to enable events.
+              Events need a free PredictHQ API key added to Vercel.
             </div>
-            <div style={{ background:"#0f0f0f", borderRadius:8, padding:"10px 12px", fontFamily:"monospace", fontSize:11, color:"#34c77b", border:"1px solid #1c1c1c" }}>
-              PREDICTHQ_KEY=your_key_here
+            <a href="https://www.predicthq.com/" target="_blank" rel="noreferrer" style={{ display:"block", marginBottom:10, color:"#34c77b", fontSize:12 }}>
+              1. Get free key at predicthq.com →
+            </a>
+            <div style={{ background:"#0f0f0f", borderRadius:8, padding:"10px 12px", fontFamily:"monospace", fontSize:11, color:"#34c77b", border:"1px solid #1c1c1c", marginBottom:8 }}>
+              PREDICTHQ_KEY = your_key_here
             </div>
-            <div style={{ fontSize:11, color:"#444", marginTop:10 }}>
-              In Vercel: Project → Settings → Environment Variables
+            <div style={{ fontSize:11, color:"#444" }}>
+              2. Vercel → daily-app → Settings → Environment Variables → Add → Redeploy
             </div>
           </div>
         </div>

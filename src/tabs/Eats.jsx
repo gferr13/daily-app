@@ -46,7 +46,7 @@ export default function Eats() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('rating');
+  const [sortBy, setSortBy] = useState('nearest');
   const [radius, setRadius] = useState(1500);
 
   const getLocation = () => {
@@ -135,10 +135,15 @@ export default function Eats() {
 
   const filtered = places
     .filter(p => !search || (p.displayName?.text || '').toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => sortBy === 'rating'
-      ? (b.rating || 0) - (a.rating || 0)
-      : (b.userRatingCount || 0) - (a.userRatingCount || 0)
-    );
+    .sort((a, b) => {
+      if (sortBy === 'nearest') {
+        if (a.distanceMiles == null) return 1;
+        if (b.distanceMiles == null) return -1;
+        return a.distanceMiles - b.distanceMiles;
+      }
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      return (b.userRatingCount || 0) - (a.userRatingCount || 0);
+    });
 
   if (!locGranted) {
     return (
@@ -231,7 +236,7 @@ export default function Eats() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
                   <div style={{ color: '#777', fontSize: 12, marginBottom: 5 }}>
-                    {place.primaryTypeDisplayName?.text || ''}{place.priceLevel ? ' · ' + PRICE_MAP[place.priceLevel] : ''}
+                    {place.primaryTypeDisplayName?.text || ''}{place.priceLevel ? ' · ' + PRICE_MAP[place.priceLevel] : ''}{place.distanceMiles != null ? ' · 📍 ' + place.distanceMiles + ' mi' : ''}
                   </div>
                   <Stars rating={place.rating} />
                   {place.userRatingCount > 0 && <span style={{ color: '#555', fontSize: 11, marginLeft: 5 }}>({place.userRatingCount.toLocaleString()})</span>}
