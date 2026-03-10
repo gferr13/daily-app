@@ -33,11 +33,10 @@ export default async function handler(req, res) {
   const { days = "30", category } = req.query;
 
   const params = new URLSearchParams({
-    "location_around.origin": `${LAT},${LNG}`,
-    "location_around.offset": RADIUS,
+    "within": `${RADIUS}@${LAT},${LNG}`,
     "active.gte": today,
     "active.lte": in60days,
-    "sort": "-rank",
+    "sort": "start",
     "limit": "50",
     "category": category || "concerts,festivals,sports,community,performing-arts,expos,conferences",
   });
