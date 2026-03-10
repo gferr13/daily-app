@@ -2,7 +2,8 @@
 // Set PREDICTHQ_KEY in Vercel environment variables
 // Get your key at https://www.predicthq.com/
 
-const PHQ_KEY = process.env.PREDICTHQ_KEY || "X7HkrfA-jUG40dmbHNM-mWXBfj9uyBTzr4D-oXmc";
+const PHQ_KEY = process.env.PREDICTHQ_KEY;
+if (!PHQ_KEY) console.error("PREDICTHQ_KEY env var not set");
 
 // Bloomfield NJ coordinates
 const LAT  = "40.8126";
@@ -15,7 +16,7 @@ const CATEGORY_MAP = {
   sports:            "sports",
   "community":       "community",
   "performing-arts": "performing-arts",
-  "food-drink":      "food-drink-festivals",
+  "food-drink":      "festivals",
   "expos":           "expos",
   "conferences":     "conferences",
 };
@@ -25,6 +26,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
 
+  if (!PHQ_KEY) return res.status(200).json({ events: [], count: 0, error: "not configured" });
   const today = new Date().toISOString().split("T")[0];
   const in60days = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -37,7 +39,7 @@ export default async function handler(req, res) {
     "active.lte": in60days,
     "sort": "-rank",
     "limit": "50",
-    "category": category || Object.values(CATEGORY_MAP).join(","),
+    "category": category || "concerts,festivals,sports,community,performing-arts,expos,conferences",
   });
 
   try {
