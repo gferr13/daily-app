@@ -4,5 +4,11 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" }
+  ],
+  "crons": [
+    {
+      "path": "/api/dispensary-deals",
+      "schedule": "0 8,13,19 * * *"
+    }
   ]
 }
