@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { isBusy } from "../utils/busyness.js";
 
 function WazeIcon() {
   return (
@@ -146,14 +147,22 @@ export default function GasTab() {
                       {s.isOpen ? "Open" : "Closed"}
                     </span>
                   )}
+                  {isBusy("gas") && s.isOpen && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", background: "#2d0a0a", padding: "2px 7px", borderRadius: 20 }}>Busy</span>
+                  )}
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                <div style={{ background: "#1a2a1a", border: "1px solid #2a3a2a", borderRadius: 10, padding: "7px 10px", display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                {regionPrice && (
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: "#34c77b", lineHeight: 1 }}>${regionPrice.toFixed(3)}</div>
+                    <div style={{ fontSize: 9, color: "#3a5a3a", marginTop: 1 }}>NJ AVG/GAL</div>
+                  </div>
+                )}
+                <div style={{ background: "#1a2a1a", border: "1px solid #2a3a2a", borderRadius: 10, padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}>
                   <WazeIcon />
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#33CCFF" }}>Go</span>
                 </div>
-                {regionPrice && <div style={{ fontSize: 13, fontWeight: 800, color: "#34c77b" }}>${regionPrice.toFixed(3)}</div>}
               </div>
             </button>
           ))}

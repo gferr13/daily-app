@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { isBusy } from '../utils/busyness.js';
 
 const CATEGORIES = [
   { id: 'restaurants',  label: 'Restaurants',    icon: '🍽',  types: ['restaurant'] },
@@ -85,20 +86,27 @@ export default function Eats() {
     setLoading(true);
     setError(null);
     try {
-      // Dispensaries: use Weedmaps API
+      // Dispensaries: call Weedmaps API directly from browser (bypasses server IP blocking)
       if (activeCategory.id === 'dispensary') {
-        const params = new URLSearchParams({ lat: coords.lat, lng: coords.lng, radius: Math.round(radius / 1609) || 5 });
-        const res = await fetch(`/api/weedmaps?${params}`);
+        const radiusMi = Math.round(radius / 1609) || 10;
+        const wmUrl = `https://api-g.weedmaps.com/discovery/v1/listings?filter[any_retailer_services][]=storefront&filter[latlng]=${coords.lat},${coords.lng}&filter[distance]=${radiusMi}&size=15&include[]=deals`;
+        const res = await fetch(wmUrl, {
+          headers: { 'Accept': 'application/json', 'Referer': 'https://weedmaps.com/' },
+        });
+        if (!res.ok) throw new Error(`Weedmaps ${res.status}`);
         const data = await res.json();
-        const mapped = (data.dispensaries || []).map(d => ({
-          id: d.id || d.slug,
-          displayName: { text: d.name },
-          formattedAddress: d.address || d.city,
-          rating: d.rating,
-          userRatingCount: d.reviews_count,
-          currentOpeningHours: { openNow: d.open_now },
-          websiteUri: d.menu_url || `https://weedmaps.com/dispensaries/${d.slug}`,
+        const mapped = (data?.data?.listings || []).map(l => ({
+          id: String(l.id),
+          displayName: { text: l.name },
+          formattedAddress: l.address || l.city,
+          rating: l.rating,
+          userRatingCount: l.reviews_count,
+          currentOpeningHours: { openNow: l.open_now },
+          websiteUri: `https://weedmaps.com/dispensaries/${l.slug}`,
           isWeedmaps: true,
+          deals: (l.deals || []).map(d => ({ title: d.title || d.name, description: d.description })),
+          distanceMi: l.distance,
+          phone: l.phone_number,
         }));
         setPlaces(mapped);
         return;
@@ -228,17 +236,38 @@ export default function Eats() {
                   <Stars rating={place.rating} />
                   {place.userRatingCount > 0 && <span style={{ color: '#555', fontSize: 11, marginLeft: 5 }}>({place.userRatingCount.toLocaleString()})</span>}
                 </div>
-                {isOpen !== undefined && (
-                  <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 10, flexShrink: 0, color: isOpen ? '#4ade80' : '#f87171', background: isOpen ? '#052e16' : '#2d0a0a', padding: '3px 8px', borderRadius: 20 }}>
-                    {isOpen ? 'Open' : 'Closed'}
-                  </span>
-                )}
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginLeft: 10 }}>
+                  {isOpen !== undefined && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: isOpen ? '#4ade80' : '#f87171', background: isOpen ? '#052e16' : '#2d0a0a', padding: '3px 8px', borderRadius: 20 }}>
+                      {isOpen ? 'Open' : 'Closed'}
+                    </span>
+                  )}
+                  {isBusy(activeCategory.id) && isOpen && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', background: '#2d0a0a', padding: '3px 8px', borderRadius: 20 }}>Busy</span>
+                  )}
+                </div>
               </div>
               {address && <div style={{ color: '#444', fontSize: 11, marginTop: 6 }}>{address}</div>}
-              {place.isWeedmaps && place.websiteUri && (
-                <a href={place.websiteUri} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 11, fontWeight: 700, color: '#4ade80', background: '#052e16', border: '1px solid #14532d', padding: '4px 10px', borderRadius: 8, textDecoration: 'none' }}>
-                  View Menu on Weedmaps →
-                </a>
+              {place.isWeedmaps && (
+                <div style={{ marginTop: 8 }}>
+                  {place.deals && place.deals.length > 0 && (
+                    <div style={{ marginBottom: 6 }}>
+                      {place.deals.slice(0, 2).map((d, di) => (
+                        <div key={di} style={{ fontSize: 11, color: '#86efac', background: '#052e16', border: '1px solid #14532d', padding: '3px 8px', borderRadius: 6, marginBottom: 3 }}>
+                          🏷 {d.title}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {place.todaysHours && (
+                    <div style={{ fontSize: 11, color: '#555', marginBottom: 6 }}>🕐 {place.todaysHours}</div>
+                  )}
+                  {place.websiteUri && (
+                    <a href={place.websiteUri} target="_blank" rel="noreferrer" style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, color: '#4ade80', background: '#052e16', border: '1px solid #14532d', padding: '5px 12px', borderRadius: 8, textDecoration: 'none' }}>
+                      View Menu on Weedmaps →
+                    </a>
+                  )}
+                </div>
               )}
             </div>
           );
